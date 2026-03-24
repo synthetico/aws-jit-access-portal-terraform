@@ -1,0 +1,140 @@
+{
+  "name": "JIT Access Portal - SSO Integration Flow",
+  "nodes": [
+    {
+      "id": "user",
+      "label": "User",
+      "x": 220,
+      "y": 0,
+      "subtitle": "Employee/Contractor",
+      "icon": "/icons/aws/general/user.png"
+    },
+    {
+      "id": "cognito",
+      "label": "Cognito User Pool",
+      "x": 220,
+      "y": 250,
+      "subtitle": "MFA Enforced",
+      "icon": "/icons/aws/security/cognito.png"
+    },
+    {
+      "id": "api",
+      "label": "API Gateway",
+      "x": 220,
+      "y": 500,
+      "subtitle": "REST API",
+      "icon": "/icons/aws/mobile/api-gateway.png"
+    },
+    {
+      "id": "request_lambda",
+      "label": "Request Access Lambda",
+      "x": 220,
+      "y": 750,
+      "subtitle": "Starts workflow",
+      "icon": "/icons/aws/compute/lambda.png"
+    },
+    {
+      "id": "stepfn",
+      "label": "Step Functions",
+      "x": 220,
+      "y": 1000,
+      "subtitle": "Approval workflow",
+      "icon": "/icons/aws/integration/step-functions.png"
+    },
+    {
+      "id": "grant_lambda",
+      "label": "Grant Access Lambda",
+      "x": 220,
+      "y": 1250,
+      "subtitle": "Creates assignment",
+      "icon": "/icons/aws/compute/lambda.png"
+    },
+    {
+      "id": "sso",
+      "label": "IAM Identity Center",
+      "x": 220,
+      "y": 1500,
+      "subtitle": "ssoins-72238ae6...",
+      "icon": "/icons/aws/security/cognito.png"
+    },
+    {
+      "id": "target_account",
+      "label": "Target AWS Account",
+      "x": 440,
+      "y": 1500,
+      "subtitle": "935595346298",
+      "icon": "/icons/aws/management/organizations-account.png"
+    },
+    {
+      "id": "dynamodb",
+      "label": "DynamoDB",
+      "x": 0,
+      "y": 1250,
+      "subtitle": "Session tracking",
+      "icon": "/icons/aws/database/dynamodb.png"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "user",
+      "target": "cognito",
+      "label": "Login + MFA"
+    },
+    {
+      "id": "e2",
+      "source": "cognito",
+      "target": "api",
+      "label": "JWT Token"
+    },
+    {
+      "id": "e3",
+      "source": "api",
+      "target": "request_lambda",
+      "label": "POST /request-access"
+    },
+    {
+      "id": "e4",
+      "source": "request_lambda",
+      "target": "stepfn",
+      "label": "Start execution"
+    },
+    {
+      "id": "e5",
+      "source": "stepfn",
+      "target": "grant_lambda",
+      "label": "After approval"
+    },
+    {
+      "id": "e6",
+      "source": "grant_lambda",
+      "target": "sso",
+      "label": "CreateAccountAssignment",
+      "color": "green",
+      "style": "solid"
+    },
+    {
+      "id": "e7",
+      "source": "sso",
+      "target": "target_account",
+      "label": "Grant permission set",
+      "color": "green",
+      "style": "solid"
+    },
+    {
+      "id": "e8",
+      "source": "grant_lambda",
+      "target": "dynamodb",
+      "label": "Store session"
+    }
+  ],
+  "legend": {
+    "edges": [
+      {
+        "label": "SSO API calls",
+        "color": "green",
+        "style": "solid"
+      }
+    ]
+  }
+}

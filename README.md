@@ -68,14 +68,22 @@ For detailed step-by-step instructions, see **[DEPLOYMENT-GUIDE.md](./DEPLOYMENT
 
 ## Required Information
 
-Before deploying, gather the following:
+Before deploying, gather the following IAM Identity Center details:
 
-### 1. SSO Instance ARN
+1. **SSO Instance ARN** - Your IAM Identity Center instance identifier
+2. **Permission Set ARN** - The permissions users will receive
+3. **Target Account ID** - The 12-digit AWS account where access will be granted
+
+**📖 See [SSO_CONFIGURATION_GUIDE.md](./SSO_CONFIGURATION_GUIDE.md) for detailed explanation of how these values are used.**
+
+### Quick Commands to Find Your Values
+
+**1. SSO Instance ARN:**
 ```bash
 aws sso-admin list-instances --query 'Instances[0].InstanceArn' --output text
 ```
 
-### 2. Permission Set ARN
+**2. Permission Set ARN:**
 ```bash
 # List all permission sets
 aws sso-admin list-permission-sets --instance-arn <YOUR_SSO_INSTANCE_ARN>
@@ -86,7 +94,7 @@ aws sso-admin describe-permission-set \
   --permission-set-arn <PERMISSION_SET_ARN>
 ```
 
-### 3. Target Account ID
+**3. Target Account ID:**
 Your 12-digit AWS account ID where permissions will be granted.
 
 ## Deployment Instructions
