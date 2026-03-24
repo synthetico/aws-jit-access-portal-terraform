@@ -1,0 +1,29 @@
+# Copy this file to terraform.tfvars and fill in your values
+
+# AWS region for deployment
+aws_region = "us-east-1"
+
+# IAM Identity Center (SSO) Instance ARN
+# Find this in: AWS Console > IAM Identity Center > Settings > ARN
+sso_instance_arn = "arn:aws:sso:::instance/ssoins-1234567890abcdef"
+
+# Target AWS Account ID where permissions will be granted
+# This is the 12-digit account ID
+target_account_id = "123456789012"
+
+# Permission Set ARN (e.g., AdministratorAccess)
+# Find this in: AWS Console > IAM Identity Center > Permission sets > Select your permission set > ARN
+permission_set_arn = "arn:aws:sso:::permissionSet/ssoins-1234567890abcdef/ps-1234567890abcdef"
+
+# Maximum session duration in hours (1-12)
+max_session_duration_hours = 12
+
+# Project name (used for resource naming)
+project_name = "tdemy-jit-portal"
+
+# Environment tag
+environment = "prototype"
+
+# API Gateway throttling settings
+api_throttle_rate_limit  = 10  # requests per second
+api_throttle_burst_limit = 20  # burst capacity

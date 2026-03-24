@@ -1,0 +1,193 @@
+{
+  "name": "Zero-Trust JIT Access Portal - AWS Architecture",
+  "nodes": [
+    {
+      "id": "user",
+      "label": "User",
+      "x": 440,
+      "y": 0,
+      "subtitle": "End User",
+      "icon": "/icons/aws/general/user.png"
+    },
+    {
+      "id": "s3",
+      "label": "S3 Bucket",
+      "x": 660,
+      "y": 250,
+      "subtitle": "Static Website",
+      "icon": "/icons/aws/storage/simple-storage-service-s3.png"
+    },
+    {
+      "id": "api_gw",
+      "label": "API Gateway",
+      "x": 440,
+      "y": 500,
+      "subtitle": "HTTP API",
+      "icon": "/icons/aws/network/api-gateway.png"
+    },
+    {
+      "id": "grant_lambda",
+      "label": "Grant Access Lambda",
+      "x": 440,
+      "y": 750,
+      "subtitle": "Python 3.12",
+      "icon": "/icons/aws/compute/lambda.png"
+    },
+    {
+      "id": "dynamodb",
+      "label": "DynamoDB",
+      "x": 880,
+      "y": 1000,
+      "subtitle": "Session Tracking",
+      "icon": "/icons/aws/database/dynamodb.png"
+    },
+    {
+      "id": "sso",
+      "label": "IAM Identity Center",
+      "x": 440,
+      "y": 1250,
+      "subtitle": "SSO Admin",
+      "icon": "/icons/aws/security/security-hub.png"
+    },
+    {
+      "id": "scheduler",
+      "label": "EventBridge Scheduler",
+      "x": 220,
+      "y": 1000,
+      "subtitle": "Auto-Revocation",
+      "icon": "/icons/aws/integration/eventbridge-scheduler.png"
+    },
+    {
+      "id": "revoke_lambda",
+      "label": "Revoke Access Lambda",
+      "x": 440,
+      "y": 1500,
+      "subtitle": "Python 3.12",
+      "icon": "/icons/aws/compute/lambda.png"
+    },
+    {
+      "id": "cloudwatch",
+      "label": "CloudWatch Logs",
+      "x": 1100,
+      "y": 1125,
+      "subtitle": "Audit Trail",
+      "icon": "/icons/aws/management/cloudwatch-logs.png"
+    },
+    {
+      "id": "grant_dlq",
+      "label": "Grant DLQ",
+      "x": 0,
+      "y": 750,
+      "subtitle": "Error Handling",
+      "icon": "/icons/aws/integration/simple-queue-service-sqs-queue.png"
+    },
+    {
+      "id": "revoke_dlq",
+      "label": "Revoke DLQ",
+      "x": 0,
+      "y": 1500,
+      "subtitle": "Error Handling",
+      "icon": "/icons/aws/integration/simple-queue-service-sqs-queue.png"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "user",
+      "target": "s3",
+      "label": "View Portal"
+    },
+    {
+      "id": "e2",
+      "source": "user",
+      "target": "api_gw",
+      "label": "Submit Request"
+    },
+    {
+      "id": "e3",
+      "source": "api_gw",
+      "target": "grant_lambda",
+      "label": "Trigger"
+    },
+    {
+      "id": "e4",
+      "source": "grant_lambda",
+      "target": "dynamodb",
+      "label": "Store Session"
+    },
+    {
+      "id": "e5",
+      "source": "grant_lambda",
+      "target": "sso",
+      "label": "Create Assignment"
+    },
+    {
+      "id": "e6",
+      "source": "grant_lambda",
+      "target": "scheduler",
+      "label": "Schedule Revocation"
+    },
+    {
+      "id": "e7",
+      "source": "scheduler",
+      "target": "revoke_lambda",
+      "label": "Invoke at Expiry"
+    },
+    {
+      "id": "e8",
+      "source": "revoke_lambda",
+      "target": "dynamodb",
+      "label": "Update Status"
+    },
+    {
+      "id": "e9",
+      "source": "revoke_lambda",
+      "target": "sso",
+      "label": "Delete Assignment"
+    },
+    {
+      "id": "e10",
+      "source": "grant_lambda",
+      "target": "cloudwatch",
+      "label": "Logs"
+    },
+    {
+      "id": "e11",
+      "source": "revoke_lambda",
+      "target": "cloudwatch",
+      "label": "Logs"
+    },
+    {
+      "id": "e12",
+      "source": "api_gw",
+      "target": "cloudwatch",
+      "label": "Access Logs"
+    },
+    {
+      "id": "e13",
+      "source": "grant_lambda",
+      "target": "grant_dlq",
+      "label": "Errors",
+      "style": "dashed"
+    },
+    {
+      "id": "e14",
+      "source": "revoke_lambda",
+      "target": "revoke_dlq",
+      "label": "Errors",
+      "style": "dashed"
+    }
+  ],
+  "legend": {
+    "edges": [
+      {
+        "label": "Primary Flow",
+        "style": "solid"
+      },
+      {
+        "label": "Error Handling",
+        "style": "dashed"
+      }
+    ]
+  }
+}
