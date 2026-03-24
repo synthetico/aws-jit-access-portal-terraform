@@ -42,3 +42,38 @@ output "s3_bucket_name" {
   description = "Name of the S3 bucket hosting the frontend"
   value       = aws_s3_bucket.frontend.id
 }
+
+output "cognito_user_pool_id" {
+  description = "Cognito User Pool ID"
+  value       = aws_cognito_user_pool.jit_portal.id
+}
+
+output "cognito_user_pool_arn" {
+  description = "Cognito User Pool ARN"
+  value       = aws_cognito_user_pool.jit_portal.arn
+}
+
+output "cognito_client_id" {
+  description = "Cognito User Pool Client ID"
+  value       = aws_cognito_user_pool_client.jit_portal.id
+}
+
+output "cognito_domain" {
+  description = "Cognito User Pool Domain"
+  value       = aws_cognito_user_pool_domain.jit_portal.domain
+}
+
+output "sns_topic_arn" {
+  description = "SNS Topic ARN for approval notifications"
+  value       = aws_sns_topic.approval_notifications.arn
+}
+
+output "step_functions_arn" {
+  description = "Step Functions State Machine ARN for approval workflow"
+  value       = aws_sfn_state_machine.approval_workflow.arn
+}
+
+output "approval_requests_table_name" {
+  description = "DynamoDB table name for approval requests"
+  value       = aws_dynamodb_table.approval_requests.name
+}

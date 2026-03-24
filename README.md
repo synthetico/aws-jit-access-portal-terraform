@@ -1,25 +1,60 @@
 # Zero-Trust JIT Access Portal for AWS
 
-A production-ready Just-In-Time (JIT) access management system for AWS using IAM Identity Center, built with Terraform.
+A **production-ready** Just-In-Time (JIT) access management system for AWS using IAM Identity Center, built with Terraform.
+
+## 🎯 Key Features
+
+- ✅ **Cognito Authentication** - Secure user authentication with email/password
+- ✅ **MFA Enforcement** - Required TOTP multi-factor authentication for all users
+- ✅ **Manager Approval Workflow** - Step Functions orchestrated approval process
+- ✅ **Email Notifications** - SNS-based approval requests to managers
+- ✅ **Automated Revocation** - EventBridge Scheduler removes access at session expiry
+- ✅ **Audit Logging** - Comprehensive CloudWatch Logs for all operations
+- ✅ **Least-Privilege IAM** - All policies scoped to minimum required permissions
+- ✅ **Zero-Trust Architecture** - Authentication, authorization, and approval required
 
 ## Architecture Overview
 
-This solution implements a Zero-Trust JIT access portal that:
-- Provides time-limited elevated permissions through IAM Identity Center
-- Automatically revokes access when the session expires
-- Tracks all access requests in DynamoDB with audit logs
-- Follows AWS security best practices with least-privilege IAM policies
+This solution implements a **Zero-Trust JIT access portal with approval workflow**:
+1. User authenticates via **Cognito** with **MFA required**
+2. Access request triggers **Step Functions approval workflow**
+3. Manager receives **SNS email** with approve/deny links
+4. Upon approval, grants time-limited elevated permissions through **IAM Identity Center**
+5. **EventBridge Scheduler** automatically revokes access when session expires
+6. All actions tracked in **DynamoDB** with **CloudWatch** audit logs
 
 ### Components
 
-- **Frontend**: S3-hosted static website with HTML form
-- **API Gateway**: HTTP API that receives access requests
-- **Grant Lambda**: Python 3.12 function that creates SSO account assignments
-- **Revoke Lambda**: Python 3.12 function that deletes SSO account assignments
-- **DynamoDB**: Session tracking with TTL for automatic cleanup
-- **EventBridge Scheduler**: Automated access revocation at session expiration
-- **CloudWatch Logs**: Comprehensive logging for all components
-- **SQS Dead Letter Queues**: Error handling for Lambda failures
+#### Authentication & Security
+- **Cognito User Pool**: User authentication with enforced MFA (TOTP)
+- **API Gateway JWT Authorizer**: Validates Cognito tokens on all requests
+- **Advanced Security Mode**: Anomaly detection and risk-based authentication
+
+#### Approval Workflow
+- **Step Functions**: State machine orchestrating the approval process
+- **SNS Topic**: Email notifications to managers
+- **DynamoDB Approval Table**: Tracks approval request status
+
+#### Access Management
+- **Request Access Lambda**: Entry point, validates user and starts workflow
+- **Send Approval Email Lambda**: Sends email to manager with approve/deny links
+- **Wait for Approval Lambda**: Stores Step Functions task token
+- **Process Approval Lambda**: Handles manager decisions (approve/deny)
+- **Grant Access Lambda**: Creates SSO account assignments (called after approval)
+- **Revoke Access Lambda**: Deletes SSO account assignments when session expires
+
+#### Data & Monitoring
+- **DynamoDB Sessions Table**: Active JIT sessions with TTL
+- **DynamoDB Approvals Table**: Approval request tracking
+- **EventBridge Scheduler**: Automated access revocation
+- **CloudWatch Logs**: Audit trail for all operations (30-day retention)
+- **SQS Dead Letter Queues**: Error handling for failed Lambda executions
+
+## Quick Start
+
+See **[QUICK-START.md](./QUICK-START.md)** for a condensed deployment guide.
+
+For detailed step-by-step instructions, see **[DEPLOYMENT-GUIDE.md](./DEPLOYMENT-GUIDE.md)**.
 
 ## Prerequisites
 

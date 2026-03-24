@@ -192,9 +192,9 @@ resource "aws_iam_role_policy" "grant_lambda_scheduler" {
         Resource = "arn:aws:scheduler:${var.aws_region}:${data.aws_caller_identity.current.account_id}:schedule/default/${var.project_name}-revoke-*"
       },
       {
-        Sid    = "PassRoleToScheduler"
-        Effect = "Allow"
-        Action = "iam:PassRole"
+        Sid      = "PassRoleToScheduler"
+        Effect   = "Allow"
+        Action   = "iam:PassRole"
         Resource = aws_iam_role.scheduler_execution.arn
         Condition = {
           StringEquals = {
@@ -339,9 +339,9 @@ resource "aws_iam_role_policy" "scheduler_invoke_lambda" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "InvokeRevokeLambda"
-        Effect = "Allow"
-        Action = "lambda:InvokeFunction"
+        Sid      = "InvokeRevokeLambda"
+        Effect   = "Allow"
+        Action   = "lambda:InvokeFunction"
         Resource = aws_lambda_function.revoke_access.arn
       }
     ]
@@ -355,7 +355,127 @@ resource "aws_iam_role_policy" "scheduler_invoke_lambda" {
 data "aws_caller_identity" "current" {}
 
 ###############################################################################
-# Lambda Function - Grant Access
+# Lambda Function - Request Access (Entry Point)
+###############################################################################
+
+resource "aws_cloudwatch_log_group" "request_access" {
+  name              = "/aws/lambda/${var.project_name}-request-access"
+  retention_in_days = 30
+
+  tags = {
+    Name = "${var.project_name}-request-access-logs"
+  }
+}
+
+resource "aws_iam_role" "request_access" {
+  name = "${var.project_name}-request-access-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = {
+    Name = "${var.project_name}-request-access-role"
+  }
+}
+
+resource "aws_iam_role_policy" "request_access_stepfunctions" {
+  name = "stepfunctions-start-execution"
+  role = aws_iam_role.request_access.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "StartStepFunctions"
+        Effect   = "Allow"
+        Action   = "states:StartExecution"
+        Resource = aws_sfn_state_machine.approval_workflow.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "request_access_cognito" {
+  name = "cognito-read"
+  role = aws_iam_role.request_access.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ReadCognitoUsers"
+        Effect = "Allow"
+        Action = [
+          "cognito-idp:GetUser",
+          "cognito-idp:AdminGetUser"
+        ]
+        Resource = aws_cognito_user_pool.jit_portal.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "request_access_basic" {
+  role       = aws_iam_role.request_access.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+data "archive_file" "request_access" {
+  type        = "zip"
+  output_path = "${path.module}/.terraform/archive/request_access.zip"
+
+  source {
+    content  = file("${path.module}/lambda/request_access.py")
+    filename = "lambda_function.py"
+  }
+}
+
+resource "aws_lambda_function" "request_access" {
+  filename         = data.archive_file.request_access.output_path
+  function_name    = "${var.project_name}-request-access"
+  role             = aws_iam_role.request_access.arn
+  handler          = "lambda_function.lambda_handler"
+  source_code_hash = data.archive_file.request_access.output_base64sha256
+  runtime          = "python3.12"
+  timeout          = 30
+  memory_size      = 256
+
+  environment {
+    variables = {
+      STEP_FUNCTIONS_ARN = aws_sfn_state_machine.approval_workflow.arn
+      MAX_DURATION_HOURS = var.max_session_duration_hours
+      USER_POOL_ID       = aws_cognito_user_pool.jit_portal.id
+    }
+  }
+
+  logging_config {
+    log_format = "JSON"
+    log_group  = aws_cloudwatch_log_group.request_access.name
+  }
+
+  tags = {
+    Name = "${var.project_name}-request-access"
+  }
+
+  depends_on = [
+    aws_cloudwatch_log_group.request_access,
+    aws_iam_role_policy.request_access_stepfunctions,
+    aws_iam_role_policy.request_access_cognito
+  ]
+}
+
+###############################################################################
+# Lambda Function - Grant Access (Called by Step Functions)
 ###############################################################################
 
 data "archive_file" "grant_lambda" {
@@ -380,15 +500,15 @@ resource "aws_lambda_function" "grant_access" {
 
   environment {
     variables = {
-      DYNAMODB_TABLE_NAME   = aws_dynamodb_table.sessions.name
-      SSO_INSTANCE_ARN      = var.sso_instance_arn
-      TARGET_ACCOUNT_ID     = var.target_account_id
-      PERMISSION_SET_ARN    = var.permission_set_arn
-      MAX_DURATION_HOURS    = var.max_session_duration_hours
-      SCHEDULER_ROLE_ARN    = aws_iam_role.scheduler_execution.arn
-      REVOKE_LAMBDA_ARN     = aws_lambda_function.revoke_access.arn
-      PROJECT_NAME          = var.project_name
-      AWS_REGION            = var.aws_region
+      DYNAMODB_TABLE_NAME = aws_dynamodb_table.sessions.name
+      SSO_INSTANCE_ARN    = var.sso_instance_arn
+      TARGET_ACCOUNT_ID   = var.target_account_id
+      PERMISSION_SET_ARN  = var.permission_set_arn
+      MAX_DURATION_HOURS  = var.max_session_duration_hours
+      SCHEDULER_ROLE_ARN  = aws_iam_role.scheduler_execution.arn
+      REVOKE_LAMBDA_ARN   = aws_lambda_function.revoke_access.arn
+      PROJECT_NAME        = var.project_name
+      AWS_REGION          = var.aws_region
     }
   }
 
@@ -474,7 +594,7 @@ resource "aws_lambda_function" "revoke_access" {
 
 resource "aws_sqs_queue" "grant_dlq" {
   name                       = "${var.project_name}-grant-dlq"
-  message_retention_seconds  = 1209600  # 14 days
+  message_retention_seconds  = 1209600 # 14 days
   visibility_timeout_seconds = 300
 
   tags = {
@@ -484,7 +604,7 @@ resource "aws_sqs_queue" "grant_dlq" {
 
 resource "aws_sqs_queue" "revoke_dlq" {
   name                       = "${var.project_name}-revoke-dlq"
-  message_retention_seconds  = 1209600  # 14 days
+  message_retention_seconds  = 1209600 # 14 days
   visibility_timeout_seconds = 300
 
   tags = {
@@ -552,25 +672,73 @@ resource "aws_cloudwatch_log_group" "api_gateway" {
   }
 }
 
-resource "aws_apigatewayv2_integration" "grant_lambda" {
+###############################################################################
+# Cognito Authorizer for API Gateway
+###############################################################################
+
+resource "aws_apigatewayv2_authorizer" "cognito" {
+  api_id           = aws_apigatewayv2_api.main.id
+  authorizer_type  = "JWT"
+  identity_sources = ["$request.header.Authorization"]
+  name             = "${var.project_name}-cognito-authorizer"
+
+  jwt_configuration {
+    audience = [aws_cognito_user_pool_client.jit_portal.id]
+    issuer   = "https://${aws_cognito_user_pool.jit_portal.endpoint}"
+  }
+}
+
+###############################################################################
+# API Gateway Integrations and Routes
+###############################################################################
+
+resource "aws_apigatewayv2_integration" "request_access" {
   api_id                 = aws_apigatewayv2_api.main.id
   integration_type       = "AWS_PROXY"
-  integration_uri        = aws_lambda_function.grant_access.invoke_arn
+  integration_uri        = aws_lambda_function.request_access.invoke_arn
   integration_method     = "POST"
   payload_format_version = "2.0"
   timeout_milliseconds   = 30000
 }
 
 resource "aws_apigatewayv2_route" "request_access" {
-  api_id    = aws_apigatewayv2_api.main.id
-  route_key = "POST /request-access"
-  target    = "integrations/${aws_apigatewayv2_integration.grant_lambda.id}"
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /request-access"
+  target             = "integrations/${aws_apigatewayv2_integration.request_access.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
-resource "aws_lambda_permission" "api_gateway" {
-  statement_id  = "AllowAPIGatewayInvoke"
+resource "aws_lambda_permission" "api_gateway_request" {
+  statement_id  = "AllowAPIGatewayInvokeRequest"
   action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.grant_access.function_name
+  function_name = aws_lambda_function.request_access.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*"
+}
+
+# Process Approval Integration
+resource "aws_apigatewayv2_integration" "process_approval" {
+  api_id                 = aws_apigatewayv2_api.main.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.process_approval.invoke_arn
+  integration_method     = "POST"
+  payload_format_version = "2.0"
+  timeout_milliseconds   = 30000
+}
+
+resource "aws_apigatewayv2_route" "process_approval" {
+  api_id             = aws_apigatewayv2_api.main.id
+  route_key          = "POST /process-approval"
+  target             = "integrations/${aws_apigatewayv2_integration.process_approval.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_lambda_permission" "api_gateway_process_approval" {
+  statement_id  = "AllowAPIGatewayInvokeProcessApproval"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.process_approval.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*"
 }
@@ -631,7 +799,7 @@ resource "aws_s3_object" "index_html" {
   bucket       = aws_s3_bucket.frontend.id
   key          = "index.html"
   content_type = "text/html"
-  content      = templatefile("${path.module}/frontend/index.html", {
+  content = templatefile("${path.module}/frontend/index.html", {
     api_endpoint = "${aws_apigatewayv2_stage.main.invoke_url}/request-access"
   })
 
