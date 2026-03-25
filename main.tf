@@ -839,9 +839,7 @@ resource "aws_s3_object" "index_html" {
   bucket       = aws_s3_bucket.frontend.id
   key          = "index.html"
   content_type = "text/html"
-  content = templatefile("${path.module}/frontend/index.html", {
-    api_endpoint = "${aws_apigatewayv2_stage.main.invoke_url}/request-access"
-  })
+  source       = "${path.module}/frontend/index.html"
 
   etag = filemd5("${path.module}/frontend/index.html")
 }
