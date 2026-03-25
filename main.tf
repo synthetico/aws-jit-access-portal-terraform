@@ -206,6 +206,25 @@ resource "aws_iam_role_policy" "grant_lambda_scheduler" {
   })
 }
 
+resource "aws_iam_role_policy" "grant_lambda_dlq" {
+  name = "sqs-dlq-permissions"
+  role = aws_iam_role.grant_lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "SQSDLQAccess"
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage"
+        ]
+        Resource = aws_sqs_queue.grant_dlq.arn
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy_attachment" "grant_lambda_basic" {
   role       = aws_iam_role.grant_lambda.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
@@ -296,6 +315,25 @@ resource "aws_iam_role_policy" "revoke_lambda_scheduler" {
           "scheduler:GetSchedule"
         ]
         Resource = "arn:aws:scheduler:${var.aws_region}:${data.aws_caller_identity.current.account_id}:schedule/default/${var.project_name}-revoke-*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "revoke_lambda_dlq" {
+  name = "sqs-dlq-permissions"
+  role = aws_iam_role.revoke_lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "SQSDLQAccess"
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage"
+        ]
+        Resource = aws_sqs_queue.revoke_dlq.arn
       }
     ]
   })
@@ -530,6 +568,7 @@ resource "aws_lambda_function" "grant_access" {
     aws_iam_role_policy.grant_lambda_sso,
     aws_iam_role_policy.grant_lambda_dynamodb,
     aws_iam_role_policy.grant_lambda_scheduler,
+    aws_iam_role_policy.grant_lambda_dlq,
     aws_iam_role_policy_attachment.grant_lambda_basic
   ]
 }
@@ -584,6 +623,7 @@ resource "aws_lambda_function" "revoke_access" {
     aws_cloudwatch_log_group.revoke_lambda,
     aws_iam_role_policy.revoke_lambda_sso,
     aws_iam_role_policy.revoke_lambda_dynamodb,
+    aws_iam_role_policy.revoke_lambda_dlq,
     aws_iam_role_policy_attachment.revoke_lambda_basic
   ]
 }
